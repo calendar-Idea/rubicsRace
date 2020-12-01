@@ -1,10 +1,22 @@
 import 'dart:collection';
 import 'dart:io';
+import 'package:app/alerts/DialogCreator.dart';
+
 import 'board.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:math';
 
 class Rumikub extends StatefulWidget {
+  final name;
+  final sendWin;
+  final playing;
+
+  Rumikub({
+    @required this.name,
+    @required this.sendWin,
+    @required this.playing,
+  }) {}
+
   @override
   _RumikubState createState() => _RumikubState();
 }
@@ -37,10 +49,12 @@ class _RumikubState extends State<Rumikub> {
   @override
   Widget build(BuildContext context) {
     print("Rerender board");
-    if (checkIfDone()) {
-      //send to server 
-      
+    if (checkIfDone() && this.widget.playing) {
+      //send to server
+      widget.sendWin();
+      DialogCreator.showWinnerDialog(context);
       print("Doneeeee");
+      //render winScreen and reconnect
     }
     return Container(
         child: Column(
@@ -137,7 +151,6 @@ class _RumikubState extends State<Rumikub> {
     return board;
   }
 
-  //TODO: switch tiles instead of switching values and rerendering board
   bool checkIfDone() {
     for (int i = 0; i < goalBoard.length; i++) {
       for (int j = 0; j < goalBoard[i].length; j++) {

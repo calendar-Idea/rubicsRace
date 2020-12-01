@@ -1,7 +1,14 @@
+import 'dart:convert';
+
+import 'package:app/WaitingScreen.dart';
+
+import 'SocketService.dart';
 import 'package:app/services/initSocket.dart';
 import 'package:flutter/material.dart';
+import 'StartScreen.dart';
 import 'game.dart';
 import './services/initSocket.dart';
+import './alerts/DialogCreator.dart';
 
 void main() {
   runApp(MyApp());
@@ -9,6 +16,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -35,7 +43,10 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  SocketIO socketIO = new SocketIO('http://10.225.103.196:5005/');
+  Socket socketIO = new Socket(
+    address: "ws://10.0.2.2:8080",
+  );
+  DialogCreator dialogCreator;
   MyHomePage({Key key, this.title}) : super(key: key);
 
   // This widget is the home page of your application. It is stateful, meaning
@@ -54,36 +65,91 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  String name = '';
+  String status = 'Waiting';
+  String opponent = '';
+  bool playing = false;
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text("Rubic's Race"),
-        backgroundColor: Colors.black,
-      ),
-      body: Rumikub(),
-      // This trailing comma makes auto-formatting nicer for build methods.
-    );
+    //send win for testing
+    // if (status == 'Start') {
+    //   widget.socketIO.sendWin();
+    // }
+    if (name.isNotEmpty) {
+      if (status != "Waiting") {
+        return Scaffold(
+          appBar: AppBar(
+            // Here we take the value from the MyHomePage object that was created by
+            // the App.build method, and use it to set our appbar title.
+            title: Text(status),
+            backgroundColor: Colors.black,
+          ),
+          body: Rumikub(
+            name: this.name,
+            sendWin: this.widget.socketIO.sendWin,
+            playing: this.playing,
+          ),
+          // This trailing comma makes auto-formatting nicer for build methods.
+        );
+      } else {
+        return WaitingScreen();
+      }
+    } else {
+      return StartScreen(onSubmit: setName);
+    }
+  }
+
+  void setName(String name) {
+    widget.socketIO.start(name);
+    widget.socketIO.setListener((message) => {listener(message)});
+    this.setState(() {
+      this.name = name;
+    });
+  }
+
+  void listener(String message) {
+    Map<String, dynamic> jsonObj;
+    try {
+      jsonObj = jsonDecode(message);
+      print(jsonObj["type"]);
+    } catch (e) {
+      print(e);
+    }
+    switch (jsonObj['type']) {
+      case ('status'):
+        handleStatus(jsonObj['status'], jsonObj);
+        break;
+    }
+    print(message);
+  }
+
+  void handleStatus(String status, Map<String, dynamic> json) {
+    //check on waiting since adding another player after first does not work maybe not setting waiting player to null
+    switch (status) {
+      case ("waiting"):
+        print("bruhhh");
+        this.setState(() {
+          this.status = "Waiting";
+        });
+        break;
+
+      case ("start"):
+        this.setState(() {
+          this.status = "Start";
+          this.opponent = json["content"];
+          this.playing = true;
+        });
+        break;
+      case ("lost"):
+        print("lostttttt");
+        this.setState(() {
+          this.status = "Lost";
+          this.playing = false;
+          this.opponent = '';
+        });
+        break;
+    }
+    print(status);
   }
 }
